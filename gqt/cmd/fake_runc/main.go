@@ -3,19 +3,12 @@ package main
 import (
 	"os"
 
+	"code.cloudfoundry.org/guardian/gqt/cmd/fake_runc/args"
 	"github.com/Sirupsen/logrus"
 )
 
 func main() {
-	logPath := ""
-	for idx, s := range os.Args {
-		if s == "-log" || s == "--log" {
-			logPath = os.Args[idx+1]
-			break
-		}
-	}
-
-	f, err := os.Create(logPath)
+	f, err := os.Create(args.GetCommandArg("log"))
 	if err != nil {
 		os.Exit(1)
 	}

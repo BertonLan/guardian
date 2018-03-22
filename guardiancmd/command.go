@@ -881,6 +881,7 @@ func (cmd *ServerCommand) wireContainerizer(log lager.Logger, factory GardenFact
 		BundleGenerator:        template,
 		ProcessBuilder:         processBuilder,
 		BundleSaver:            bundleSaver,
+		BundleLoader:           bndlLoader,
 		ExecRunner:             factory.WireExecRunner("run"),
 		RuncDeleter:            runcDeleter,
 		PeaCleaner:             peaCleaner,

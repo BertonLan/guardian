@@ -160,26 +160,34 @@ func (c *Containerizer) Run(log lager.Logger, handle string, spec garden.Process
 		return nil, err
 	}
 
-	if spec.Image != (garden.ImageRef{}) {
-		if shouldResolveUsername(spec.User) {
-			resolvedUID, resolvedGID, err := c.peaUsernameResolver.ResolveUser(log, bundlePath, handle, spec.Image, spec.User)
-			if err != nil {
-				return nil, err
-			}
+	// pea rootfs defaults to containers rootfs
+	if spec.Image == (garden.ImageRef{}) {
+		bundle, err := c.loader.Load(bundlePath)
+		if err != nil {
+			return nil, err
+		}
+		containerRootfsPath := bundle.RootFS()
+		spec.Image = garden.ImageRef{URI: "raw://" + containerRootfsPath}
+	}
 
-			spec.User = fmt.Sprintf("%d:%d", resolvedUID, resolvedGID)
+	if shouldResolveUsername(spec.User) {
+		resolvedUID, resolvedGID, err := c.peaUsernameResolver.ResolveUser(log, bundlePath, handle, spec.Image, spec.User)
+		if err != nil {
+			return nil, err
 		}
 
-		return c.peaCreator.CreatePea(log, spec, io, handle, bundlePath)
+		spec.User = fmt.Sprintf("%d:%d", resolvedUID, resolvedGID)
 	}
 
-	if spec.BindMounts != nil {
-		err := fmt.Errorf("Running a process with bind mounts and no image provided is not allowed")
-		log.Error("invalid-spec", err)
-		return nil, err
-	}
+	return c.peaCreator.CreatePea(log, spec, io, handle, bundlePath)
 
-	return c.runtime.Exec(log, bundlePath, handle, spec, io)
+	// if spec.BindMounts != nil {
+	// 	err := fmt.Errorf("Running a process with bind mounts and no image provided is not allowed")
+	// 	log.Error("invalid-spec", err)
+	// 	return nil, err
+	// }
+	//
+	// return c.runtime.Exec(log, bundlePath, handle, spec, io)
 }
 
 func shouldResolveUsername(username string) bool {

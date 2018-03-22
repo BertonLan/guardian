@@ -43,12 +43,14 @@ type RuncDeleter interface {
 }
 
 type PeaCreator struct {
-	Volumizer              Volumizer
-	PidGetter              PidGetter
+	Volumizer Volumizer
+	PidGetter PidGetter
+	//TODO do we need priv getter?
 	PrivilegedGetter       PrivilegedGetter
 	BindMountSourceCreator depot.BindMountSourceCreator
 	BundleGenerator        depot.BundleGenerator
 	BundleSaver            depot.BundleSaver
+	BundleLoader           depot.BundleLoader
 	ProcessBuilder         runrunc.ProcessBuilder
 	ExecRunner             runrunc.ExecRunner
 	RuncDeleter            RuncDeleter
@@ -127,12 +129,19 @@ func (p *PeaCreator) CreatePea(log lager.Logger, processSpec garden.ProcessSpec,
 		}
 	}
 
+	//TODO how often are we calling this
+	bundle, err := p.BundleLoader.Load(sandboxBundlePath)
+	if err != nil {
+		return nil, err
+	}
+
 	bndl, genErr := p.BundleGenerator.Generate(spec.DesiredContainerSpec{
 		Handle:     processID,
 		BaseConfig: runtimeSpec,
 		CgroupPath: cgroupPath,
 		Limits:     limits,
 		Namespaces: linuxNamespaces,
+		Env:        bundle.Spec.Process.Env,
 		BindMounts: append(processSpec.BindMounts, defaultBindMounts...),
 		Privileged: privileged,
 	}, sandboxBundlePath)
@@ -162,8 +171,9 @@ func (p *PeaCreator) CreatePea(log lager.Logger, processSpec garden.ProcessSpec,
 		procIO, preparedProcess.Process.Terminal, nil, extraCleanup,
 	)
 	if runErr != nil {
-		destroyErr := p.Volumizer.Destroy(log, processID)
-		return nil, multierror.Append(runErr, destroyErr)
+		//TODO: log destroy err
+		p.Volumizer.Destroy(log, processID)
+		return nil, runErr
 	}
 
 	return proc, nil
